@@ -20,7 +20,7 @@ func Start() *PubSub {
 }
 
 func (ps *PubSub) CreatePublisher(brokers []Broker) (*Publisher, error) {
-	publisher, err := NewPublisher(brokers)
+	publisher, err := NewPublisher(ps, brokers)
 
 	if err != nil {
 		return nil, err
@@ -34,11 +34,20 @@ func (ps *PubSub) CreatePublisher(brokers []Broker) (*Publisher, error) {
 }
 
 func (ps *PubSub) CreateBroker() *Broker {
-	broker := NewBroker()
+	broker := NewBroker(ps)
 
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	ps.brokers = append(ps.brokers, broker)
 
 	return broker
+}
+
+func (bm *PubSub) GetBrokerForTopic(topic string) *Broker {
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+	if len(bm.brokers) > 0 {
+		return bm.brokers[0]
+	}
+	return nil
 }

@@ -3,14 +3,16 @@ package makepubsub
 import "sync"
 
 type Broker struct {
+	pubsub        *PubSub
 	numReaders    int
 	registrations map[string][]Subscriber
 	msgCh         map[*Publisher]chan Message
 	mu            sync.Mutex
 }
 
-func NewBroker() *Broker {
+func NewBroker(pubsub *PubSub) *Broker {
 	return &Broker{
+		pubsub:        pubsub,
 		numReaders:    1,
 		registrations: make(map[string][]Subscriber),
 		msgCh:         make(map[*Publisher]chan Message),
@@ -21,6 +23,30 @@ func (b *Broker) RegisterPublisher(publisher *Publisher) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.msgCh[publisher] = make(chan Message)
+}
+
+func (b *Broker) RegisterTopic(topic string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if _, exists := b.registrations[topic]; !exists {
+		b.registrations[topic] = []Subscriber{}
+	}
+}
+
+func (b *Broker) AddSubscriberToTopic(topic string, sub *Subscriber) {
+	b.RegisterTopic(topic)
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for _, subscriber := range b.registrations[topic] {
+		if &subscriber == sub {
+			return
+		}
+	}
+
+	b.registrations[topic] = append(b.registrations[topic], *sub)
 }
 
 func (b *Broker) SetNumReaders(n int) {

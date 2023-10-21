@@ -3,13 +3,15 @@ package makepubsub
 import "sync"
 
 type Subscriber struct {
+	pubsub *PubSub
 	topics []string
 	msgCh  chan Message
 	mu     sync.Mutex
 }
 
-func NewSubscriber() *Subscriber {
+func NewSubscriber(pubsub *PubSub) *Subscriber {
 	return &Subscriber{
+		pubsub: pubsub,
 		msgCh:  make(chan Message),
 		topics: []string{},
 	}
@@ -20,7 +22,12 @@ func (s *Subscriber) SubscribeTo(topic string) {
 	defer s.mu.Unlock()
 
 	s.topics = append(s.topics, topic)
-	// lógica para registrar o tópico no broker
+
+	broker := s.pubsub.GetBrokerForTopic(topic)
+
+	if broker != nil {
+		broker.RegisterTopic(topic)
+	}
 }
 
 func (s *Subscriber) UnsubscribeFrom(topic string) {

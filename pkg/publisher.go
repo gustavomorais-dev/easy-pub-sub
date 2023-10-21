@@ -6,16 +6,18 @@ import (
 )
 
 type Publisher struct {
+	pubsub  *PubSub
 	brokers []Broker
 	mu      sync.Mutex
 }
 
-func NewPublisher(brokers []Broker) (*Publisher, error) {
+func NewPublisher(pubsub *PubSub, brokers []Broker) (*Publisher, error) {
 	if len(brokers) == 0 {
 		return nil, errors.New("no brokers provided")
 	}
 
 	publisher := Publisher{
+		pubsub:  pubsub,
 		brokers: brokers,
 	}
 
