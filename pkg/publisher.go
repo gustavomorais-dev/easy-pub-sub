@@ -6,30 +6,45 @@ import (
 )
 
 type Publisher struct {
-	brokers map[*Broker]chan Message
+	brokers []Broker
 	mu      sync.Mutex
 }
 
-func NewPublisher(brokers []*Broker) (*Publisher, error) {
+func NewPublisher(brokers []Broker) (*Publisher, error) {
 	if len(brokers) == 0 {
 		return nil, errors.New("no brokers provided")
 	}
 
-	brokerMap := make(map[*Broker]chan Message)
-	for _, broker := range brokers {
-		brokerMap[broker] = make(chan Message)
+	publisher := Publisher{
+		brokers: brokers,
 	}
 
-	return &Publisher{
-		brokers: brokerMap,
-	}, nil
+	publisher.mu.Lock()
+	defer publisher.mu.Unlock()
+
+	for _, broker := range brokers {
+		broker.RegisterPublisher(&publisher)
+	}
+
+	return &publisher, nil
 }
 
 func (p *Publisher) Publish(msg Message) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for _, ch := range p.brokers {
-		ch <- msg
+	updatedBrokers := make(map[*Broker]struct{})
+
+	for _, broker := range p.brokers {
+		broker.mu.Lock()
+
+		if _, ok := updatedBrokers[&broker]; !ok {
+			updatedBrokers[&broker] = struct{}{}
+			for key := range broker.msgCh {
+				broker.msgCh[key] <- msg
+			}
+		}
+
+		broker.mu.Unlock()
 	}
 }
